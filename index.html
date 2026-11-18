@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriChef Lab // Simulador Clínico & Jogo de Nutrição</title>
+  <style>
+    :root {
+      --bg: #0b131e;
+      --panel: #131f30;
+      --panel-alt: #1a293f;
+      --border: #273c59;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --blue: #38bdf8;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    #app {
+      max-width: 1260px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 14px 18px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* HUD Superior */
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 20px;
+    }
+
+    .brand {
+      font-size: 1.4rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    .brand span {
+      color: var(--green);
+    }
+
+    .hud-stats {
+      display: flex;
+      gap: 24px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .lbl {
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    .val {
+      font-size: 1.25rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .val.green { color: var(--green); }
+    .val.gold  { color: var(--orange); }
+
+    .icon-btn {
+      background-color: var(--panel-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    /* Grid Principal */
+    .board {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr 1.1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .panel {
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Paciente */
+    .patient-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      background-color: var(--panel-alt);
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+    }
+
+    .tag {
+      display: inline-block;
+      background-color: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 999px;
+      letter-spacing: 1px;
+    }
+
+    .tag.danger {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: var(--red);
+    }
+
+    .patient-header h2 {
+      font-size: 1.2rem;
+      margin-top: 2px;
+    }
+
+    .bio {
+      background-color: var(--panel-alt);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.86rem;
+      color: #cbd5e1;
+      font-style: italic;
+      margin-bottom: 16px;
+      border-left: 3px solid var(--green);
+    }
+
+    .targets h3, .panel h3 {
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+
+    .meter {
+      margin-bottom: 11px;
+    }
+
+    .meter-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .bar {
+      height: 10px;
+      background-color: #090f18;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.25s ease, background-color 0.2s ease;
+    }
+
+    .fill.kcal  { background-color: var(--orange); }
+    .fill.prot  { background-color: var(--red); }
+    .fill.carb  { background-color: #eab308; }
+    .fill.fat   { background-color: var(--purple); }
+    .fill.water { background-color: var(--blue); }
+    .fill.over  { background-color: #ff2a55 !important; }
+
+    .synergy-box {
+      margin-top: auto;
+      background-color: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: #bae6fd;
+    }
+
+    /* Prato */
+    .plate-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .btn-text {
+      background: none;
+      border: none;
+      color: var(--red);
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    .plate-zone {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--panel-alt);
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .plate-zone.drag-over {
+      border-color: var(--green);
+      background-color: rgba(16, 185, 129, 0.1);
+    }
+
+    .plate-ring {
+      width: 265px;
+      height: 265px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #1e2f47 60%, #162336 100%);
+      border: 8px solid #2d4363;
+      box-shadow: inset 0 6px 18px rgba(0, 0, 0, 0.5), 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    #plate-placeholder {
+      font-size: 0.82rem;
+      color: var(--muted);
+      max-width: 180px;
+    }
+
+    .plate-items {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .plate-chip {
+      background-color: var(--panel);
+      border: 1px solid var(--green);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      animation: popIn 0.2s ease;
+    }
+
+    .plate-chip:hover {
+      background-color: rgba(239, 68, 68, 0.25);
+      border-color: var(--red);
+    }
+
+    .plate-actions {
+      margin-top: 14px;
+    }
+
+    .btn-serve {
+      width: 100%;
+      background: linear-gradient(90deg, #059669, #10b981);
+      color: #04130d;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 900;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-serve:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Despensa */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      background-color: var(--panel-alt);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background-color: var(--green);
+      color: #051610;
+      border-color: var(--green);
+    }
+
+    .pantry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      overflow-y: auto;
+      max-height: 410px;
+    }
+
+    .food-card {
+      background-color: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .food-card:hover {
+      border-color: var(--green);
+      transform: translateY(-1px);
+    }
+
+    .food-card.junk {
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .food-emoji {
+      font-size: 1.6rem;
+    }
+
+    .food-info strong {
+      display: block;
+      font-size: 0.82rem;
+    }
+
+    .food-info small {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    /* Overlays */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(6, 11, 18, 0.88);
+      backdrop-filter: blur(5px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .overlay.hidden {
+      display: none !important;
+    }
+
+    .modal {
+      background: linear-gradient(180deg, #162438 0%, #0f1927 100%);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.75);
+    }
+
+    .modal h1 {
+      font-size: 2.3rem;
+      margin: 10px 0;
+    }
+
+    .modal h1 span {
+      color: var(--green);
+    }
+
+    .modal h2 {
+      margin: 10px 0;
+    }
+
+    .modal p {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .rules {
+      text-align: left;
+      background-color: rgba(9, 15, 24, 0.65);
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      list-style: none;
+      font-size: 0.86rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fb-emoji {
+      font-size: 3.5rem;
+      margin-bottom: 8px;
+    }
+
+    .fb-details {
+      background-color: rgba(9, 15, 24, 0.65);
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      font-size: 0.88rem;
+      text-align: left;
+      line-height: 1.6;
+    }
+
+    .final-box {
+      display: flex;
+      justify-content: space-around;
+      background-color: rgba(9, 15, 24, 0.75);
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @media (max-width: 960px) {
+      .board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- HUD Superior -->
+    <header class="hud">
+      <div class="brand">NUTRI<span>CHEF</span> LAB</div>
+      <div class="hud-stats">
+        <div class="stat">
+          <span class="lbl">PONTOS</span>
+          <span id="score" class="val">0000</span>
+        </div>
+        <div class="stat">
+          <span class="lbl">PACIENTE</span>
+          <span id="level" class="val green">01</span>
+        </div>
+        <div class="stat">
+          <span class="lbl">REPUTAÇÃO</span>
+          <span id="lives" class="val">❤️❤️❤️</span>
+        </div>
+        <div class="stat">
+          <span class="lbl">TEMPO</span>
+          <span id="timer" class="val gold">50s</span>
+        </div>
+      </div>
+      <button id="sound-toggle" type="button" class="icon-btn" title="Som" onclick="toggleSound(this)">🔊</button>
+    </header>
+
+    <!-- Área Principal -->
+    <main class="board">
+      <!-- Coluna 1: Paciente -->
+      <section class="panel">
+        <div class="patient-header">
+          <div id="patient-avatar" class="avatar">🏃‍♂️</div>
+          <div>
+            <span id="patient-tag" class="tag">ATLETA DE ENDURANCE</span>
+            <h2 id="patient-name">Lucas, 26 anos</h2>
+          </div>
+        </div>
+        <p id="patient-bio" class="bio">
+          "Vou correr 15km amanhã cedo! Preciso de energia de qualidade, boa proteína e hidratação."
+        </p>
+
+        <div class="targets">
+          <h3>🎯 Metas da Refeição</h3>
+
+          <div class="meter">
+            <div class="meter-top">
+              <span>🔥 Calorias</span>
+              <span id="lbl-kcal">0 / 620 kcal</span>
+            </div>
+            <div class="bar"><div id="fill-kcal" class="fill kcal"></div></div>
+          </div>
+
+          <div class="meter">
+            <div class="meter-top">
+              <span>🥩 Proteínas</span>
+              <span id="lbl-prot">0 / 36g</span>
+            </div>
+            <div class="bar"><div id="fill-prot" class="fill prot"></div></div>
+          </div>
+
+          <div class="meter">
+            <div class="meter-top">
+              <span>🍠 Carboidratos</span>
+              <span id="lbl-carb">0 / 80g</span>
+            </div>
+            <div class="bar"><div id="fill-carb" class="fill carb"></div></div>
+          </div>
+
+          <div class="meter">
+            <div class="meter-top">
+              <span>🥑 Gorduras Boas</span>
+              <span id="lbl-fat">0 / 15g</span>
+            </div>
+            <div class="bar"><div id="fill-fat" class="fill fat"></div></div>
+          </div>
+
+          <div class="meter">
+            <div class="meter-top">
+              <span>💧 Hidratação</span>
+              <span id="lbl-water">0 / 350ml</span>
+            </div>
+            <div class="bar"><div id="fill-water" class="fill water"></div></div>
+          </div>
+        </div>
+
+        <div id="synergy-box" class="synergy-box">
+          💡 <strong>Dica Clínica:</strong> Combine Arroz + Feijão ou Feijão + Laranja para ganhar bônus!
+        </div>
+      </section>
+
+      <!-- Coluna 2: Prato -->
+      <section class="panel">
+        <div class="plate-header">
+          <h3>🍽️ Bancada de Montagem</h3>
+          <button id="clear-plate" type="button" class="btn-text" onclick="clearPlate()">Esvaziar Prato</button>
+        </div>
+
+        <div id="plate-zone" class="plate-zone">
+          <div class="plate-ring">
+            <p id="plate-placeholder">Clique ou arraste os alimentos da direita para cá</p>
+            <div id="plate-items" class="plate-items"></div>
+          </div>
+        </div>
+
+        <div class="plate-actions">
+          <button id="serve-btn" type="button" class="btn-serve" onclick="handleServe()">✅ ENTREGAR REFEIÇÃO</button>
+        </div>
+      </section>
+
+      <!-- Coluna 3: Despensa -->
+      <section class="panel">
+        <h3>🧺 Despensa Nutricional</h3>
+        <div class="tabs">
+          <button type="button" class="tab active" data-cat="all" onclick="filterPantry('all', this)">Todos</button>
+          <button type="button" class="tab" data-cat="prot" onclick="filterPantry('prot', this)">Proteínas</button>
+          <button type="button" class="tab" data-cat="carb" onclick="filterPantry('carb', this)">Carbos</button>
+          <button type="button" class="tab" data-cat="fat" onclick="filterPantry('fat', this)">Gorduras</button>
+          <button type="button" class="tab" data-cat="drink" onclick="filterPantry('drink', this)">Líquidos</button>
+        </div>
+        <div id="pantry-grid" class="pantry-grid"></div>
+      </section>
+    </main>
+
+    <!-- Tela Inicial -->
+    <div id="start-overlay" class="overlay">
+      <div class="modal">
+        <span class="tag">SIMULADOR INTERATIVO DE NUTRIÇÃO</span>
+        <h1>NUTRI<span>CHEF</span> LAB</h1>
+        <p>Atenda pacientes reais, analise suas necessidades metabólicas e monte pratos equilibrados dentro da faixa ideal de nutrientes.</p>
+        <ul class="rules">
+          <li>🖱️ <strong>Clique ou arraste</strong> alimentos para o prato (máx. 6 itens).</li>
+          <li>⚖️ Deixe as barras perto de <strong>100%</strong> sem ultrapassar 120%!</li>
+          <li>⚡ Combine <strong>Arroz + Feijão</strong> ou <strong>Feijão + Laranja</strong> para bônus extras.</li>
+        </ul>
+        <button id="start-btn" type="button" class="btn-serve" onclick="startNewGame()">ABRIR CONSULTÓRIO</button>
+      </div>
+    </div>
+
+    <!-- Tela de Feedback -->
+    <div id="feedback-overlay" class="overlay hidden">
+      <div class="modal">
+        <div id="fb-emoji" class="fb-emoji">🌟</div>
+        <h2 id="fb-title">Prescrição Perfeita!</h2>
+        <p id="fb-desc">O paciente atingiu todas as metas metabólicas.</p>
+        <div id="fb-details" class="fb-details"></div>
+        <button id="next-btn" type="button" class="btn-serve" onclick="nextPatient()">PRÓXIMO PACIENTE ➡️</button>
+      </div>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="gameover-overlay" class="overlay hidden">
+      <div class="modal">
+        <span class="tag danger">EXPEDIENTE ENCERRADO</span>
+        <h2>FIM DE JOGO</h2>
+        <p id="go-reason">A reputação do consultório chegou a zero.</p>
+        <div class="final-box">
+          <div>Pontuação: <strong id="final-score">0</strong></div>
+          <div>Pacientes Atendidos: <strong id="final-patients">0</strong></div>
+        </div>
+        <button id="restart-btn" type="button" class="btn-serve" onclick="startNewGame()">JOGAR NOVAMENTE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================= ÁUDIO SINTETIZADO =================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        try {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) this.ctx = new AudioCtx();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        } catch (e) {
+          this.enabled = false;
+        }
+      }
+      play(freq, type = 'sine', dur = 0.12, vol = 0.12) {
+        if (!this.enabled || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + dur);
+        } catch (e) {}
+      }
+      add() { this.play(540, 'sine', 0.1); }
+      remove() { this.play(300, 'triangle', 0.1); }
+      success() {
+        this.play(523.25, 'sine', 0.15);
+        setTimeout(() => this.play(659.25, 'sine', 0.15), 90);
+        setTimeout(() => this.play(783.99, 'sine', 0.25), 180);
+      }
+      fail() {
+        this.play(180, 'sawtooth', 0.25, 0.16);
+        setTimeout(() => this.play(130, 'sawtooth', 0.35, 0.16), 140);
+      }
+    }
+
+    const sfx = new SoundEngine();
+
+    function toggleSound(btn) {
+      sfx.enabled = !sfx.enabled;
+      btn.textContent = sfx.enabled ? '🔊' : '🔇';
+    }
+
+    // ================= BANCO DE ALIMENTOS =================
+    const FOODS = [
+      { id: 'chicken', emoji: '🍗', name: 'Frango Grelhado', cat: 'prot', kcal: 165, prot: 31, carb: 0,  fat: 4,  water: 0 },
+      { id: 'eggs',    emoji: '🥚', name: '2 Ovos Cozidos',  cat: 'prot', kcal: 155, prot: 13, carb: 1,  fat: 11, water: 0 },
+      { id: 'fish',    emoji: '🐟', name: 'Salmão Assado',   cat: 'prot', kcal: 208, prot: 20, carb: 0,  fat: 13, water: 0 },
+      { id: 'beans',   emoji: '🫘', name: 'Feijão Carioca',  cat: 'prot', kcal: 110, prot: 7,  carb: 20, fat: 1,  water: 20 },
+      { id: 'rice',    emoji: '🍚', name: 'Arroz Integral',  cat: 'carb', kcal: 130, prot: 3,  carb: 28, fat: 1,  water: 0 },
+      { id: 'sweetp',  emoji: '🍠', name: 'Batata Doce',     cat: 'carb', kcal: 115, prot: 2,  carb: 27, fat: 0,  water: 10 },
+      { id: 'banana',  emoji: '🍌', name: 'Banana Prata',    cat: 'carb', kcal: 90,  prot: 1,  carb: 23, fat: 0,  water: 15 },
+      { id: 'oats',    emoji: '🥣', name: 'Aveia em Flocos', cat: 'carb', kcal: 140, prot: 5,  carb: 24, fat: 3,  water: 0 },
+      { id: 'avocado', emoji: '🥑', name: 'Abacate (1/2)',   cat: 'fat',  kcal: 120, prot: 1,  carb: 6,  fat: 11, water: 10 },
+      { id: 'nuts',    emoji: '🥜', name: 'Mix de Castanhas',cat: 'fat',  kcal: 170, prot: 5,  carb: 6,  fat: 15, water: 0 },
+      { id: 'olive',   emoji: '🫒', name: 'Azeite + Salada', cat: 'fat',  kcal: 110, prot: 1,  carb: 5,  fat: 10, water: 40 },
+      { id: 'water',   emoji: '💧', name: 'Água Mineral',    cat: 'drink',kcal: 0,   prot: 0,  carb: 0,  fat: 0,  water: 300 },
+      { id: 'orange',  emoji: '🍊', name: 'Suco de Laranja', cat: 'drink',kcal: 110, prot: 2,  carb: 25, fat: 0,  water: 250 },
+      { id: 'soda',    emoji: '🥤', name: 'Refrigerante',    cat: 'drink',kcal: 150, prot: 0,  carb: 39, fat: 0,  water: 50, junk: true },
+      { id: 'burger',  emoji: '🍔', name: 'Fast-Food',       cat: 'fat',  kcal: 480, prot: 20, carb: 42, fat: 26, water: 0,  junk: true }
+    ];
+
+    // ================= PACIENTES =================
+    const PATIENTS = [
+      {
+        avatar: '🏃‍♂️',
+        tag: 'ATLETA DE ENDURANCE',
+        name: 'Lucas, 26 anos',
+        bio: '"Vou correr 15km amanhã cedo! Preciso de bastante carboidrato de qualidade, proteína magra e hidratação."',
+        target: { kcal: 620, prot: 36, carb: 80, fat: 15, water: 350 }
+      },
+      {
+        avatar: '👩‍💻',
+        tag: 'FOCO & SACIEDADE',
+        name: 'Mariana, 32 anos',
+        bio: '"Trabalho sentada o dia todo e quero emagrecer com saúde sem sentir fome à tarde."',
+        target: { kcal: 440, prot: 34, carb: 35, fat: 16, water: 300 }
+      },
+      {
+        avatar: '🏋️',
+        tag: 'HIPERTROFIA MUSCULAR',
+        name: 'Rafael, 23 anos',
+        bio: '"Acabei de sair de um treino pesado de pernas. Preciso bater minhas proteínas e repor o glicogênio!"',
+        target: { kcal: 720, prot: 52, carb: 85, fat: 18, water: 350 }
+      },
+      {
+        avatar: '👵',
+        tag: 'SAÚDE ÓSSEA & IMUNIDADE',
+        name: 'Dona Helena, 68 anos',
+        bio: '"Estou me recuperando de uma anemia leve e preciso de uma refeição nutritiva, leve e rica em ferro."',
+        target: { kcal: 480, prot: 28, carb: 55, fat: 14, water: 320 }
+      }
+    ];
+
+    // ================= ESTADO =================
+    const state = {
+      score: 0,
+      level: 1,
+      lives: 3,
+      timeLeft: 50,
+      timerId: null,
+      currentPatient: PATIENTS[0],
+      plate: [],
+      activeCategory: 'all'
+    };
+
+    // ================= DESPENSA =================
+    function renderPantry() {
+      const pantryGrid = document.getElementById('pantry-grid');
+      if (!pantryGrid) return;
+      pantryGrid.innerHTML = '';
+
+      const list = state.activeCategory === 'all'
+        ? FOODS
+        : FOODS.filter(f => f.cat === state.activeCategory);
+
+      list.forEach(food => {
+        const card = document.createElement('div');
+        card.className = `food-card ${food.junk ? 'junk' : ''}`;
+        card.draggable = true;
+        card.innerHTML = `
+          <span class="food-emoji">${food.emoji}</span>
+          <div class="food-info">
+            <strong>${food.name}</strong>
+            <small>${food.kcal}kcal • P:${food.prot}g C:${food.carb}g G:${food.fat}g</small>
+          </div>
+        `;
+
+        card.onclick = () => addToPlate(food);
+        card.ondragstart = (e) => e.dataTransfer.setData('text/plain', food.id);
+        pantryGrid.appendChild(card);
+      });
+    }
+
+    function filterPantry(cat, btn) {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      state.activeCategory = cat;
+      renderPantry();
+    }
+
+    // ================= DRAG & DROP =================
+    const plateZone = document.getElementById('plate-zone');
+    if (plateZone) {
+      plateZone.ondragover = (e) => {
+        e.preventDefault();
+        plateZone.classList.add('drag-over');
+      };
+      plateZone.ondragleave = () => plateZone.classList.remove('drag-over');
+      plateZone.ondrop = (e) => {
+        e.preventDefault();
+        plateZone.classList.remove('drag-over');
+        const foodId = e.dataTransfer.getData('text/plain');
+        const food = FOODS.find(f => f.id === foodId);
+        if (food) addToPlate(food);
+      };
+    }
+
+    // ================= PRATO =================
+    function addToPlate(food) {
+      if (state.plate.length >= 6) {
+        alert('Limite máximo de 6 itens por prato!');
+        return;
+      }
+      state.plate.push(food);
+      sfx.add();
+      updatePlateUI();
+    }
+
+    function removeFromPlate(index) {
+      state.plate.splice(index, 1);
+      sfx.remove();
+      updatePlateUI();
+    }
+
+    function clearPlate() {
+      state.plate = [];
+      sfx.remove();
+      updatePlateUI();
+    }
+
+    function detectSynergies() {
+      const ids = state.plate.map(f => f.id);
+      const synergies = [];
+
+      if (ids.includes('beans') && ids.includes('orange')) {
+        synergies.push({ text: '⚡ Sinergia Ferro + Vitamina C (Feijão + Laranja): +200 pts!', bonus: 200 });
+      }
+      if (ids.includes('rice') && ids.includes('beans')) {
+        synergies.push({ text: '⚡ Proteína Completa (Arroz + Feijão): +150 pts!', bonus: 150 });
+      }
+      if (ids.includes('olive') && (ids.includes('chicken') || ids.includes('fish'))) {
+        synergies.push({ text: '⚡ Absorção Lipossolúvel (Azeite + Proteína): +120 pts!', bonus: 120 });
+      }
+      return synergies;
+    }
+
+    function updatePlateUI() {
+      const container = document.getElementById('plate-items');
+      const placeholder = document.getElementById('plate-placeholder');
+      container.innerHTML = '';
+
+      placeholder.style.display = state.plate.length === 0 ? 'block' : 'none';
+
+      state.plate.forEach((item, idx) => {
+        const chip = document.createElement('div');
+        chip.className = 'plate-chip';
+        chip.innerHTML = `${item.emoji} ${item.name} <span>✕</span>`;
+        chip.onclick = () => removeFromPlate(idx);
+        container.appendChild(chip);
+      });
+
+      const totals = state.plate.reduce((acc, f) => {
+        acc.kcal  += f.kcal;
+        acc.prot  += f.prot;
+        acc.carb  += f.carb;
+        acc.fat   += f.fat;
+        acc.water += f.water;
+        return acc;
+      }, { kcal: 0, prot: 0, carb: 0, fat: 0, water: 0 });
+
+      const t = state.currentPatient.target;
+      updateMeter('kcal',  totals.kcal,  t.kcal,  'kcal');
+      updateMeter('prot',  totals.prot,  t.prot,  'g');
+      updateMeter('carb',  totals.carb,  t.carb,  'g');
+      updateMeter('fat',   totals.fat,   t.fat,   'g');
+      updateMeter('water', totals.water, t.water, 'ml');
+
+      const syns = detectSynergies();
+      const synBox = document.getElementById('synergy-box');
+      synBox.innerHTML = syns.length > 0
+        ? syns.map(s => `<div>${s.text}</div>`).join('')
+        : '💡 <strong>Dica Clínica:</strong> Combine Arroz + Feijão ou Feijão + Laranja para ganhar bônus!';
+    }
+
+    function updateMeter(key, current, target, unit) {
+      document.getElementById(`lbl-${key}`).textContent = `${current} / ${target}${unit}`;
+      const fill = document.getElementById(`fill-${key}`);
+      const pct = (current / target) * 100;
+      fill.style.width = `${Math.min(100, pct)}%`;
+      fill.classList.toggle('over', pct > 120);
+    }
+
+    // ================= AVALIAÇÃO =================
+    function handleServe() {
+      if (state.plate.length === 0) {
+        alert('Coloque pelo menos um alimento no prato antes de entregar!');
+        return;
+      }
+      clearInterval(state.timerId);
+
+      const totals = state.plate.reduce((acc, f) => {
+        acc.kcal  += f.kcal;
+        acc.prot  += f.prot;
+        acc.carb  += f.carb;
+        acc.fat   += f.fat;
+        acc.water += f.water;
+        if (f.junk) acc.junkCount++;
+        return acc;
+      }, { kcal: 0, prot: 0, carb: 0, fat: 0, water: 0, junkCount: 0 });
+
+      const t = state.currentPatient.target;
+      const keys = ['kcal', 'prot', 'carb', 'fat', 'water'];
+      let matched = 0;
+      const report = [];
+
+      keys.forEach(k => {
+        const ratio = totals[k] / t[k];
+        if (ratio >= 0.78 && ratio <= 1.22) {
+          matched++;
+          report.push(`✅ ${k.toUpperCase()}: No alvo (${totals[k]} / ${t[k]})`);
+        } else if (ratio < 0.78) {
+          report.push(`⚠️ ${k.toUpperCase()}: Abaixo da meta (${totals[k]} / ${t[k]})`);
+        } else {
+          report.push(`❌ ${k.toUpperCase()}: Excesso (${totals[k]} / ${t[k]})`);
+        }
+      });
+
+      const synBonus = detectSynergies().reduce((s, item) => s + item.bonus, 0);
+      const junkPenalty = totals.junkCount * 150;
+
+      if (matched >= 4 && totals.junkCount === 0) {
+        const roundPoints = matched * 120 + state.timeLeft * 5 + synBonus;
+        state.score += roundPoints;
+        sfx.success();
+        document.getElementById('fb-emoji').textContent = '🌟';
+        document.getElementById('fb-title').textContent = 'Prescrição Perfeita!';
+        document.getElementById('fb-desc').textContent = `Você ganhou +${roundPoints} pontos!`;
+      } else if (matched >= 3) {
+        const roundPoints = Math.max(100, matched * 90 + synBonus - junkPenalty);
+        state.score += roundPoints;
+        sfx.success();
+        document.getElementById('fb-emoji').textContent = '👍';
+        document.getElementById('fb-title').textContent = 'Boa Refeição!';
+        document.getElementById('fb-desc').textContent = `O paciente ficou satisfeito (+${roundPoints} pts).`;
+      } else {
+        state.lives--;
+        sfx.fail();
+        document.getElementById('fb-emoji').textContent = '⚠️';
+        document.getElementById('fb-title').textContent = 'Desequilíbrio Nutricional';
+        document.getElementById('fb-desc').textContent = 'A refeição ficou longe das metas (-1 ❤️ de reputação).';
+      }
+
+      if (totals.junkCount > 0) {
+        report.push(`🍔 Penalidade por ultraprocessados: -${junkPenalty} pts`);
+      }
+
+      document.getElementById('fb-details').innerHTML = report.join('<br>');
+      updateHUD();
+
+      if (state.lives <= 0) {
+        endGame('A reputação do consultório chegou a zero.');
+      } else {
+        document.getElementById('feedback-overlay').classList.remove('hidden');
+      }
+    }
+
+    // ================= PACIENTES & TEMPO =================
+    function loadNextPatient() {
+      const base = PATIENTS[(state.level - 1) % PATIENTS.length];
+      const mult = 1 + Math.floor((state.level - 1) / PATIENTS.length) * 0.12;
+
+      state.currentPatient = {
+        ...base,
+        target: {
+          kcal:  Math.round(base.target.kcal * mult),
+          prot:  Math.round(base.target.prot * mult),
+          carb:  Math.round(base.target.carb * mult),
+          fat:   Math.round(base.target.fat * mult),
+          water: Math.round(base.target.water * mult)
+        }
+      };
+
+      state.plate = [];
+      state.timeLeft = Math.max(30, 52 - state.level * 2);
+
+      document.getElementById('patient-avatar').textContent = state.currentPatient.avatar;
+      document.getElementById('patient-tag').textContent = state.currentPatient.tag;
+      document.getElementById('patient-name').textContent = state.currentPatient.name;
+      document.getElementById('patient-bio').textContent = state.currentPatient.bio;
+
+      updatePlateUI();
+      updateHUD();
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(state.timerId);
+      state.timerId = setInterval(() => {
+        state.timeLeft--;
+        document.getElementById('timer').textContent = `${state.timeLeft}s`;
+        if (state.timeLeft <= 0) {
+          clearInterval(state.timerId);
+          state.lives--;
+          sfx.fail();
+          updateHUD();
+          if (state.lives <= 0) {
+            endGame('O tempo acabou e os pacientes ficaram esperando!');
+          } else {
+            state.level++;
+            loadNextPatient();
+          }
+        }
+      }, 1000);
+    }
+
+    function updateHUD() {
+      document.getElementById('score').textContent = String(state.score).padStart(4, '0');
+      document.getElementById('level').textContent = String(state.level).padStart(2, '0');
+      document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0, state.lives));
+      document.getElementById('timer').textContent = `${state.timeLeft}s`;
+    }
+
+    function endGame(reason) {
+      clearInterval(state.timerId);
+      document.getElementById('go-reason').textContent = reason;
+      document.getElementById('final-score').textContent = state.score;
+      document.getElementById('final-patients').textContent = state.level - 1;
+      document.getElementById('gameover-overlay').classList.remove('hidden');
+    }
+
+    // ================= FLUXO PRINCIPAL =================
+    function startNewGame() {
+      sfx.init();
+      document.getElementById('start-overlay').classList.add('hidden');
+      document.getElementById('gameover-overlay').classList.add('hidden');
+      document.getElementById('feedback-overlay').classList.add('hidden');
+      state.score = 0;
+      state.level = 1;
+      state.lives = 3;
+      renderPantry();
+      loadNextPatient();
+    }
+
+    function nextPatient() {
+      document.getElementById('feedback-overlay').classList.add('hidden');
+      state.level++;
+      loadNextPatient();
+    }
+
+    // Renderiza a despensa imediatamente ao abrir a página
+    renderPantry();
+  </script>
+</body>
+</html>
